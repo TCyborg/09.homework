@@ -10,6 +10,7 @@
 #include <map>
 #include <vector>
 #include <chrono>
+#include <thread>
 
 const size_t TOPK = 10;
 
@@ -30,7 +31,7 @@ void process_single_file(const std::string& filename, Counter& global_counter) {
     }
     count_words(input, local_counter);
     for (const auto& [word, count] : local_counter) {
-        global_counter[word] += count;
+        global_counter[word] += count;//TODO
     }
 }
 
@@ -42,8 +43,12 @@ int main(int argc, char *argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
     Counter freq_dict;
+    std::vector<std::thread> threads;
     for (int i = 1; i < argc; ++i) {
-        process_single_file(argv[i], freq_dict);
+        threads.emplace_back(process_single_file, std::string(argv[i]), std::ref(freq_dict));
+    }
+    for (auto& thread : threads) {
+        thread.join();
     }
 
     print_topk(std::cout, freq_dict, TOPK);
