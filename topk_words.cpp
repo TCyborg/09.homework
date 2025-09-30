@@ -21,6 +21,19 @@ void count_words(std::istream& stream, Counter&);
 
 void print_topk(std::ostream& stream, const Counter&, const size_t k);
 
+void process_single_file(const std::string& filename, Counter& global_counter) {
+    Counter local_counter;
+    std::ifstream input{filename};
+    if (!input.is_open()) {
+        std::cerr << "Failed to open file " << filename << '\n';
+        return;
+    }
+    count_words(input, local_counter);
+    for (const auto& [word, count] : local_counter) {
+        global_counter[word] += count;
+    }
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         std::cerr << "Usage: topk_words [FILES...]\n";
@@ -30,12 +43,7 @@ int main(int argc, char *argv[]) {
     auto start = std::chrono::high_resolution_clock::now();
     Counter freq_dict;
     for (int i = 1; i < argc; ++i) {
-        std::ifstream input{argv[i]};
-        if (!input.is_open()) {
-            std::cerr << "Failed to open file " << argv[i] << '\n';
-            return EXIT_FAILURE;
-        }
-        count_words(input, freq_dict);
+        process_single_file(argv[i], freq_dict);
     }
 
     print_topk(std::cout, freq_dict, TOPK);
