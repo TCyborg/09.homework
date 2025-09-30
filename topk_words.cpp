@@ -11,6 +11,7 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <mutex>
 
 const size_t TOPK = 10;
 
@@ -22,7 +23,7 @@ void count_words(std::istream& stream, Counter&);
 
 void print_topk(std::ostream& stream, const Counter&, const size_t k);
 
-void process_single_file(const std::string& filename, Counter& global_counter) {
+void process_single_file(const std::string& filename, Counter& global_counter, std::mutex& counter_mutex) {
     Counter local_counter;
     std::ifstream input{filename};
     if (!input.is_open()) {
@@ -30,8 +31,9 @@ void process_single_file(const std::string& filename, Counter& global_counter) {
         return;
     }
     count_words(input, local_counter);
+    std::lock_guard<std::mutex> lock(counter_mutex);
     for (const auto& [word, count] : local_counter) {
-        global_counter[word] += count;//TODO
+        global_counter[word] += count;
     }
 }
 
@@ -43,9 +45,13 @@ int main(int argc, char *argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
     Counter freq_dict;
+    std::mutex dict_mutex;  // Мьютекс для защиты общего словаря
     std::vector<std::thread> threads;
     for (int i = 1; i < argc; ++i) {
-        threads.emplace_back(process_single_file, std::string(argv[i]), std::ref(freq_dict));
+        threads.emplace_back(process_single_file, 
+                           std::string(argv[i]), 
+                           std::ref(freq_dict), 
+                           std::ref(dict_mutex));
     }
     for (auto& thread : threads) {
         thread.join();
